@@ -1,6 +1,9 @@
 package com.udacity.stockhawk.ui;
 
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.database.Cursor;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
@@ -43,6 +46,15 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
     @BindView(R.id.error)
     TextView error;
     private StockAdapter adapter;
+    private InvalidStockReceiver mInvalidStockReceiver;
+
+    public static final int CHECK_STOCK = 1;
+    public static final String CHECK_STOCK_KEY = "stock_key";
+    public static final String ACTION_INVALID_STOCK = "com.udacity.stockhawk.ui.ACTION_INVALID_STOCK";
+
+    public void invalidStockAdded(){
+        swipeRefreshLayout.setRefreshing(false);
+    }
 
     @Override
     public void onClick(String symbol) {
@@ -62,6 +74,7 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
 
         swipeRefreshLayout.setOnRefreshListener(this);
         swipeRefreshLayout.setRefreshing(true);
+        swipeRefreshLayout.setEnabled(false);
         onRefresh();
 
         QuoteSyncJob.initialize(this);
@@ -81,7 +94,16 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
             }
         }).attachToRecyclerView(stockRecyclerView);
 
+        mInvalidStockReceiver = new InvalidStockReceiver();
+        registerReceiver(mInvalidStockReceiver, new IntentFilter(ACTION_INVALID_STOCK));
 
+
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        unregisterReceiver(mInvalidStockReceiver);
     }
 
     private boolean networkUp() {
@@ -94,7 +116,7 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
     @Override
     public void onRefresh() {
 
-        QuoteSyncJob.syncImmediately(this);
+        QuoteSyncJob.syncImmediately(this, null);
 
         if (!networkUp() && adapter.getItemCount() == 0) {
             swipeRefreshLayout.setRefreshing(false);
@@ -117,8 +139,13 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
     }
 
     void addStock(String symbol) {
-        if (symbol != null && !symbol.isEmpty()) {
 
+        if (symbol != null && !symbol.isEmpty()) {
+            if(PrefUtils.stockExists(this, symbol)) {
+                String message = getString(R.string.toast_stock_already_in_list, symbol);
+                Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+                return;
+            }
             if (networkUp()) {
                 swipeRefreshLayout.setRefreshing(true);
             } else {
@@ -126,8 +153,7 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
                 Toast.makeText(this, message, Toast.LENGTH_LONG).show();
             }
 
-            PrefUtils.addStock(this, symbol);
-            QuoteSyncJob.syncImmediately(this);
+            QuoteSyncJob.syncImmediately(this, symbol);
         }
     }
 
@@ -162,7 +188,7 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
                 .equals(getString(R.string.pref_display_mode_absolute_key))) {
             item.setIcon(R.drawable.ic_percentage);
         } else {
-            item.setIcon(R.drawable.ic_dollar);
+                item.setIcon(R.drawable.ic_dollar);
         }
     }
 
@@ -185,5 +211,22 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
             return true;
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    public class InvalidStockReceiver extends BroadcastReceiver {
+
+        public InvalidStockReceiver () {
+            super();
+        }
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if(intent.getAction().equals(ACTION_INVALID_STOCK)){
+                swipeRefreshLayout.setRefreshing(false);
+                String symbol = intent.getStringExtra(MainActivity.CHECK_STOCK_KEY);
+                Toast.makeText(context, "Stock " + symbol + " not found", Toast.LENGTH_LONG).show();
+                button(null);
+            }
+        }
     }
 }

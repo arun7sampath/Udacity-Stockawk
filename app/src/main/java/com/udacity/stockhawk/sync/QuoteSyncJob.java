@@ -8,9 +8,11 @@ import android.content.Context;
 import android.content.Intent;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
+import android.os.PersistableBundle;
 
 import com.udacity.stockhawk.data.Contract;
 import com.udacity.stockhawk.data.PrefUtils;
+import com.udacity.stockhawk.ui.MainActivity;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -31,13 +33,33 @@ import yahoofinance.quotes.stock.StockQuote;
 public final class QuoteSyncJob {
 
     private static final int ONE_OFF_ID = 2;
-    private static final String ACTION_DATA_UPDATED = "com.udacity.stockhawk.ACTION_DATA_UPDATED";
+    public static final String ACTION_DATA_UPDATED = "com.udacity.stockhawk.ACTION_DATA_UPDATED";
     private static final int PERIOD = 300000;
     private static final int INITIAL_BACKOFF = 10000;
     private static final int PERIODIC_ID = 1;
-    private static final int YEARS_OF_HISTORY = 2;
+    private static final int YEARS_OF_HISTORY = 1;
+    private Context mContext;
 
     private QuoteSyncJob() {
+    }
+
+    public static void isStockValid(Context context, String symbol){
+        try {
+            Stock stock = YahooFinance.get(symbol);
+            if(stock.getName() == null) {
+                Timber.d("invalid stock");
+                Intent intent = new Intent(MainActivity.ACTION_INVALID_STOCK);
+                intent.putExtra(MainActivity.CHECK_STOCK_KEY, symbol);
+                context.sendBroadcast(intent);
+            }
+            else {
+                PrefUtils.addStock(context, symbol);
+                getQuotes(context);
+            }
+        }
+        catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     static void getQuotes(Context context) {
@@ -46,7 +68,7 @@ public final class QuoteSyncJob {
 
         Calendar from = Calendar.getInstance();
         Calendar to = Calendar.getInstance();
-        from.add(Calendar.YEAR, -YEARS_OF_HISTORY);
+        from.add(Calendar.MONTH, -YEARS_OF_HISTORY);
 
         try {
 
@@ -64,8 +86,6 @@ public final class QuoteSyncJob {
             Map<String, Stock> quotes = YahooFinance.get(stockArray);
             Iterator<String> iterator = stockCopy.iterator();
 
-            Timber.d(quotes.toString());
-
             ArrayList<ContentValues> quoteCVs = new ArrayList<>();
 
             while (iterator.hasNext()) {
@@ -74,14 +94,14 @@ public final class QuoteSyncJob {
 
                 Stock stock = quotes.get(symbol);
                 StockQuote quote = stock.getQuote();
-
+                Timber.d(quote.toString());
                 float price = quote.getPrice().floatValue();
                 float change = quote.getChange().floatValue();
                 float percentChange = quote.getChangeInPercent().floatValue();
 
                 // WARNING! Don't request historical data for a stock that doesn't exist!
                 // The request will hang forever X_x
-                List<HistoricalQuote> history = stock.getHistory(from, to, Interval.WEEKLY);
+                List<HistoricalQuote> history = stock.getHistory(from, to, Interval.DAILY);
 
                 StringBuilder historyBuilder = new StringBuilder();
 
@@ -139,27 +159,33 @@ public final class QuoteSyncJob {
     public static synchronized void initialize(final Context context) {
 
         schedulePeriodic(context);
-        syncImmediately(context);
+        syncImmediately(context, null);
 
     }
 
-    public static synchronized void syncImmediately(Context context) {
+    public static synchronized void syncImmediately(Context context, String symbol) {
 
         ConnectivityManager cm =
                 (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
         NetworkInfo networkInfo = cm.getActiveNetworkInfo();
         if (networkInfo != null && networkInfo.isConnectedOrConnecting()) {
             Intent nowIntent = new Intent(context, QuoteIntentService.class);
+            if(symbol != null){
+                nowIntent.putExtra(MainActivity.CHECK_STOCK_KEY, symbol);
+            }
             context.startService(nowIntent);
         } else {
 
             JobInfo.Builder builder = new JobInfo.Builder(ONE_OFF_ID, new ComponentName(context, QuoteJobService.class));
 
-
             builder.setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
                     .setBackoffCriteria(INITIAL_BACKOFF, JobInfo.BACKOFF_POLICY_EXPONENTIAL);
 
-
+            if(symbol != null) {
+                PersistableBundle persistableBundle = new PersistableBundle();
+                persistableBundle.putString(MainActivity.CHECK_STOCK_KEY, symbol);
+                builder.setExtras(persistableBundle);
+            }
             JobScheduler scheduler = (JobScheduler) context.getSystemService(Context.JOB_SCHEDULER_SERVICE);
 
             scheduler.schedule(builder.build());

@@ -6,7 +6,7 @@
     <string name="pref_stocks_key">stocks</string>
 
 
-    <string name="pref_display_mode_key">displayMode</string>
+    <string name="pref_display_mode_key">Stock Display Mode</string>
     <string name="pref_display_mode_default">@string/pref_display_mode_percentage_key</string>
 
     <string name="pref_display_mode_absolute_key">absolute</string>
@@ -30,6 +30,11 @@
     <string name="error_no_stocks">No stocks added! Hit the floating action button to add one.</string>
 
     <string name="toast_stock_added_no_connectivity">Symbol %s added. Will refresh when network available.</string>
+    <string name="toast_stock_already_in_list">%s already in list, Swipe to Refresh.</string>
     <string name="toast_no_connectivity">Will refresh when network available.</string>
 
+    <string name="add_stock">Add New Stock</string>
+
+    <string name="tab_one_week">Last 7 Days</string>
+    <string name="tab_one_month">Last 30 Days</string>
 </resources>

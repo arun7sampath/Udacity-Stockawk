@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:id="@+id/tab_chart_layout">
+    <com.github.mikephil.charting.charts.LineChart
+        android:id="@+id/one_week_chart"
+        android:layout_width="match_parent"
+        android:tag="@string/tab_one_week"
+        android:layout_height="match_parent">
+
+    </com.github.mikephil.charting.charts.LineChart>
+</FrameLayout>

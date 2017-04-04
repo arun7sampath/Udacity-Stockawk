@@ -1,3 +1,5 @@
 <resources>
     <dimen name="activity_horizontal_margin">16dp</dimen>
+    <dimen name="expanded_text_size">24sp</dimen>
+    <dimen name="actual_text_size">16sp</dimen>
 </resources>

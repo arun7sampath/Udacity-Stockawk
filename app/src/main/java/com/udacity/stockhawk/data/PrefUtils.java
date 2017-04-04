@@ -6,11 +6,16 @@ import android.preference.PreferenceManager;
 
 import com.udacity.stockhawk.R;
 
+import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Set;
 
 public final class PrefUtils {
+
+    public final String TAG = this.getClass().getName();
 
     private PrefUtils() {
     }
@@ -88,4 +93,19 @@ public final class PrefUtils {
         editor.apply();
     }
 
+    public  static Locale getCurrentLocale(Context context){
+        return context.getResources().getConfiguration().locale;
+    }
+
+    public static boolean stockExists(Context context, String symbol) {
+        Set<String> stocks = getStocks(context);
+        return stocks.contains(symbol);
+    }
+
+    public static String getChartDate(String julianDate) {
+
+        Date date = new Date(Long.valueOf(julianDate));
+        return new SimpleDateFormat("MMM dd").format(date);
+
+    }
 }
